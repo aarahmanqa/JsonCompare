@@ -289,9 +289,9 @@ public class Main {
 	public static void compareJsonValueAsText(String key, String sourceValue, String targetValue) throws Throwable{		
 		Row row = sheet.createRow(rowCounter++);
 		if(sourceValue.length() > 32700)
-			sourceValue.substring(0, 32700);
+			sourceValue = sourceValue.substring(0, 32700);
 		if(targetValue.length() > 32700)
-			targetValue.substring(0, 32700);
+			targetValue = targetValue.substring(0, 32700);
 		if(sourceValue.equals(targetValue) == true) {
 			System.out.println("Matching key = " + key + " : \n" + sourceValue + " \n" + targetValue);
 			row.createCell(0).setCellValue(key);
