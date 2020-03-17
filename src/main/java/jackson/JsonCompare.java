@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
-public class Main {
+public class JsonCompare {
 
 	static XSSFWorkbook workbook;
 	static Sheet sheet;
@@ -73,7 +73,7 @@ public class Main {
 						compareJson("["+i+"]", arrayNode1.get(i), arrayNode2.get(j));
 					}*/
 					
-					compareJson(null, arrayNode1, arrayNode2);
+					compareJson(null, null, arrayNode1, arrayNode2);
 				}
 			}
 		}		
@@ -122,11 +122,14 @@ public class Main {
 		return null;
 	}
 
-	public static void compareJson(String keyChain, JsonNode jsonNode1, JsonNode jsonNode2) throws Throwable {
+	public static void compareJson(String keyChain1, String keyChain2, JsonNode jsonNode1, JsonNode jsonNode2) throws Throwable {
 
-		String thisKeyChain = "";
-		if(keyChain == null)
-			keyChain = "";
+		String thisKeyChain1 = "";
+		String thisKeyChain2 = "";
+		if(keyChain1 == null)
+			keyChain1 = "";
+		if(keyChain2 == null)
+			keyChain2 = "";
 		if(jsonNode1 == null || jsonNode2 == null) {
 			String sourceValue = "<missing>";
 			if(jsonNode1 != null) {
@@ -135,7 +138,7 @@ public class Main {
 			String targetValue = "<missing>";
 			if(jsonNode2 != null)
 				targetValue = new ObjectMapper().writeValueAsString(jsonNode2);			
-			compareJsonValueAsText(keyChain,sourceValue,targetValue);
+			compareJsonValueAsText(keyChain1,keyChain2,sourceValue,targetValue);
 		}
 		else if(jsonNode1.isArray() && jsonNode2.isArray()) {				
 			//ArrayNode arrayNode1 = sortArrayNode((ArrayNode)jsonNode1);
@@ -158,8 +161,9 @@ public class Main {
 				}
 
 				if(firstValue2 == null) {
-					thisKeyChain = keyChain+"["+i+"]";
-					compareJson(thisKeyChain,arrayNode1.get(i),null);
+					thisKeyChain1 = keyChain1+"["+i+"]";
+					thisKeyChain2 = keyChain2+"[]";
+					compareJson(thisKeyChain1,thisKeyChain2, arrayNode1.get(i),null);
 					continue;
 				}
 
@@ -170,24 +174,26 @@ public class Main {
 						for(j=0;j<arrayNode2.size();j++) {
 							String arr2 = new ObjectMapper().writeValueAsString(arrayNode2.get(j));
 							if(arr1.equalsIgnoreCase(arr2)) {
-								thisKeyChain = keyChain+"["+i+"]"; 
-								compareJson(thisKeyChain,arrayNode1.get(i), arrayNode2.get(j));
+								thisKeyChain1 = keyChain1+"["+i+"]";
+								thisKeyChain2 = keyChain2+"["+j+"]";
+								compareJson(thisKeyChain1,thisKeyChain2,arrayNode1.get(i), arrayNode2.get(j));
 								break;
 							}
 						}
 
 						if(j == arrayNode2.size()) {
-							compareJson(thisKeyChain,arrayNode1.get(i), null);
+							compareJson(thisKeyChain1,thisKeyChain2,arrayNode1.get(i), null);
 						}
 					}
 				}
 				while(arrFields.hasNext()) {
 					Entry<String, JsonNode> arrEntry = arrFields.next();
 					String arrKey = arrEntry.getKey();
-					thisKeyChain = keyChain+"["+i+"]."+arrKey;
+					thisKeyChain1 = keyChain1+"["+i+"]."+arrKey;
+					thisKeyChain2 = keyChain2+"["+j+"]."+arrKey;
 					JsonNode arrValue1 = arrEntry.getValue();
 					JsonNode arrValue2 = arrayNode2.get(j).get(arrKey);
-					compareJson(thisKeyChain, arrValue1,arrValue2);
+					compareJson(thisKeyChain1, thisKeyChain2, arrValue1,arrValue2);
 
 				}
 			}				
@@ -195,28 +201,32 @@ public class Main {
 		else if(jsonNode1.isContainerNode() && jsonNode2.isContainerNode()) {
 			Iterator<Entry<String, JsonNode>> fields1 = jsonNode1.fields();
 			if(fields1.hasNext() == false) {
-				compareJsonValueAsText(keyChain, jsonNode1, jsonNode2);
+				compareJsonValueAsText(keyChain1, keyChain2, jsonNode1, jsonNode2);
 			}
 			while(fields1.hasNext()) {
 				Entry<String, JsonNode> entry = fields1.next();
 				String thisKey = entry.getKey();
-				thisKeyChain = "";
-				if(keyChain.isBlank())
-					thisKeyChain = thisKey;
+				thisKeyChain1 = "";
+				if(keyChain1.isBlank())
+					thisKeyChain1 = thisKey;
 				else
-					thisKeyChain = keyChain + "." + thisKey;
+					thisKeyChain1 = keyChain1 + "." + thisKey;
+				if(keyChain2.isBlank())
+					thisKeyChain2 = thisKey;
+				else
+					thisKeyChain2 = keyChain2 + "." + thisKey;
 				JsonNode value1 = entry.getValue();
 				JsonNode value2 = jsonNode2.get(thisKey);
-				compareJson(thisKeyChain, value1, value2);
+				compareJson(thisKeyChain1, thisKeyChain2, value1, value2);
 			}
 		}
 		else if(jsonNode1.isValueNode() && jsonNode2.isValueNode()){
-			compareJsonValueAsText(keyChain, jsonNode1, jsonNode2);
+			compareJsonValueAsText(keyChain1, keyChain2, jsonNode1, jsonNode2);
 		}
 		else {
 			String sourceValue = jsonNode1.asText();
 			String targetValue = jsonNode2.asText();
-			System.out.println("Not Matching key = " + keyChain + " : \n" + sourceValue + " \n" + targetValue);
+			System.out.println("Not Matching key = " + keyChain1 + " : \n" + sourceValue + " \n" + targetValue);
 		}
 	}
 
@@ -280,28 +290,28 @@ public class Main {
 		return resultArrayNode;
 	}
 
-	public static void compareJsonValueAsText(String key, JsonNode value1, JsonNode value2) throws Throwable{
+	public static void compareJsonValueAsText(String key1, String key2, JsonNode value1, JsonNode value2) throws Throwable{
 		String sourceValue = new ObjectMapper().writeValueAsString(value1);
 		String targetValue = new ObjectMapper().writeValueAsString(value2);
-		compareJsonValueAsText(key,sourceValue,targetValue);
+		compareJsonValueAsText(key1,key2,sourceValue,targetValue);
 	}
 	
-	public static void compareJsonValueAsText(String key, String sourceValue, String targetValue) throws Throwable{		
+	public static void compareJsonValueAsText(String key1, String key2, String sourceValue, String targetValue) throws Throwable{		
 		Row row = sheet.createRow(rowCounter++);
 		if(sourceValue.length() > 32700)
 			sourceValue = sourceValue.substring(0, 32700);
 		if(targetValue.length() > 32700)
 			targetValue = targetValue.substring(0, 32700);
 		if(sourceValue.equals(targetValue) == true) {
-			System.out.println("Matching key = " + key + " : \n" + sourceValue + " \n" + targetValue);
-			row.createCell(0).setCellValue(key);
+			System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+			row.createCell(0).setCellValue(key1);
 			row.createCell(1).setCellValue(sourceValue);
 			row.createCell(2).setCellValue(targetValue);
 			row.createCell(3).setCellValue("Match");			
 		}
 		else {
-			System.out.println("Not Matching key = " + key + " : \n" + sourceValue + " \n" + targetValue);
-			row.createCell(0).setCellValue(key);
+			System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+			row.createCell(0).setCellValue(key1);
 			row.createCell(1).setCellValue(sourceValue);
 			row.createCell(2).setCellValue(targetValue);
 			row.createCell(3).setCellValue("Mismatch");
