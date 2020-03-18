@@ -191,28 +191,33 @@ public class JsonCompare {
 			//ArrayNode arrayNode2 = sortArrayNode((ArrayNode)jsonNode2);
 			ArrayNode arrayNode1 = (ArrayNode)jsonNode1;
 			ArrayNode arrayNode2 = (ArrayNode)jsonNode2;
+			ArrayList<Integer> usedIndices = new ArrayList<Integer>();
 			for(int i=0; i<arrayNode1.size(); i++) {
 
 				String firstValue1 = new ObjectMapper().writeValueAsString(getFirstValueNode(arrayNode1.get(i)));
 				String firstValue2 = null;
 				int j = 0;
-				for(j=0; j<arrayNode2.size(); j++) {							
+				for(j=0; j<arrayNode2.size(); j++) {
+					if(usedIndices.contains(j))
+						continue;
 					String temp = new ObjectMapper().writeValueAsString(getFirstValueNode(arrayNode2.get(j)));;
 					if(temp == null)
 						continue;
 					if(firstValue1.equalsIgnoreCase(temp)) {
 						firstValue2 = temp;
+						usedIndices.add(j);
 						break;
 					}
 				}
 
 				if(firstValue2 == null) {
 					thisKeyChain1 = keyChain1+"["+i+"]";
-					thisKeyChain2 = keyChain2+"[]";
+					thisKeyChain2 = keyChain2+"["+i+"]";
 					compareJson(thisKeyChain1,thisKeyChain2, arrayNode1.get(i),null);
 					continue;
 				}
 
+				//Array has list of elements like this: ["Ahamed","Abdul","Rahman"]. This will has hasNext() as false.
 				Iterator<Entry<String, JsonNode>> arrFields = arrayNode1.get(i).fields();
 				if(arrFields.hasNext() == false) {
 					for(i=0;i<arrayNode1.size();i++) {
