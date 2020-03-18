@@ -11,12 +11,18 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTAutoFilter;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTFilter;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTFilterColumn;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +31,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 public class JsonCompare {
 
 	static XSSFWorkbook workbook;
-	static Sheet sheet;
+	static XSSFSheet sheet;
 	static int rowCounter = 0;
 	static String excelFileName = null;
 	public static void main(String...arg)throws Throwable{
@@ -36,7 +42,9 @@ public class JsonCompare {
 			resultsFolder.mkdirs();
 		excelFileName = "Result_" + zdt.format(DateTimeFormatter.ofPattern("dd_MMMM_yyyy_HH_mm")) + ".xlsx";		
 		workbook = new XSSFWorkbook();
-		workbook.write(new FileOutputStream("results/" + excelFileName));
+		FileOutputStream fileOutputStream = new FileOutputStream("results/" + excelFileName);
+		workbook.write(fileOutputStream);
+		fileOutputStream.close();
 		String strSourceFolder = "/Users/ahamedabdulrahman/Downloads/CDMS-25641/preprod";
 		String strTargetFolder = "/Users/ahamedabdulrahman/Downloads/CDMS-25641/prod";
 		File sourceFolder = new File(strSourceFolder);
@@ -53,30 +61,68 @@ public class JsonCompare {
 
 					rowCounter = 0;
 					sheet = workbook.createSheet(sourceFileName);
-					/*int i=0,j=0;
-					for(i=0;i<arrayNode1.size();i++) {
-						String id1 = getJsonValue("_id",arrayNode1.get(i),null);
-						if(id1 == null) {
-							throw new Exception("id is not available in source json");
-						}
+					Row row = sheet.createRow(0);
+					sheet.setColumnWidth(0, 14000);
+					sheet.setColumnWidth(1, 12000);
+					sheet.setColumnWidth(2, 12000);
+					sheet.setColumnWidth(3, 14000);
+					sheet.setColumnWidth(4, 4000);
 
-						String id2 = null;
-						for(j=0;j<arrayNode2.size();j++) {
-							id2 = getJsonValue("_id",arrayNode2.get(j),null);
-							if(id1.equals(id2))
-								break;
-						}
-						if(id2 == null) {
-							throw new Exception("id is not available in target json");
-						}
+					CellStyle style = workbook.createCellStyle();      
+					style.setFillForegroundColor(IndexedColors.AQUA.getIndex());
+					style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+					Cell cell0 = row.createCell(0);
+					cell0.setCellValue("Source Key");					
+					cell0.setCellStyle(style);
+					Cell cell1 = row.createCell(1);
+					cell1.setCellValue("Source Value");
+					cell1.setCellStyle(style);
+					Cell cell2 = row.createCell(2);
+					cell2.setCellValue("Target Value");
+					cell2.setCellStyle(style);
+					Cell cell3 = row.createCell(3);
+					cell3.setCellValue("Target Key");
+					cell3.setCellStyle(style);
+					Cell cell4 = row.createCell(4);
+					cell4.setCellValue("Result");
+					cell4.setCellStyle(style);
+					workbook.write(new FileOutputStream("results/" + excelFileName));
 
-						compareJson("["+i+"]", arrayNode1.get(i), arrayNode2.get(j));
-					}*/
-					
 					compareJson(null, null, arrayNode1, arrayNode2);
+
+					// Apply filter and hide other columns.
+					CellRangeAddress cellRangeAddress = new CellRangeAddress(0, rowCounter, 0, 4);
+					sheet.setAutoFilter(cellRangeAddress);
+					CTAutoFilter autoFilter = sheet.getCTWorksheet().getAutoFilter();
+					CTFilterColumn filterColumn = autoFilter.insertNewFilterColumn(0);
+					filterColumn.setColId(4);
+					CTFilter newFilter = filterColumn.addNewFilters().insertNewFilter(0);
+					newFilter.setVal("Mismatch");
+
+					XSSFRow r1;
+					for(Row r : sheet) {
+						for (Cell c : r) {
+							if (c.getColumnIndex()==4 && !c.getStringCellValue().equals("Mismatch")) {
+								r1=(XSSFRow) c.getRow();
+								if (r1.getRowNum()!=0) { /* Ignore top row */
+									/* Hide Row that does not meet Filter Criteria */
+									r1.getCTRow().setHidden(true); 
+								}
+							}				
+						}
+					}
+
+					fileOutputStream = new FileOutputStream("results/" + excelFileName);
+					workbook.write(fileOutputStream);
+					fileOutputStream.close();
 				}
 			}
 		}		
+	}
+
+	private static void setCellValue(String string) {
+		// TODO Auto-generated method stub
+
 	}
 
 	public static String getJsonValue(String key, JsonNode jsonNode, String keyChain) {
@@ -295,9 +341,9 @@ public class JsonCompare {
 		String targetValue = new ObjectMapper().writeValueAsString(value2);
 		compareJsonValueAsText(key1,key2,sourceValue,targetValue);
 	}
-	
+
 	public static void compareJsonValueAsText(String key1, String key2, String sourceValue, String targetValue) throws Throwable{		
-		Row row = sheet.createRow(rowCounter++);
+		Row row = sheet.createRow(++rowCounter);
 		if(sourceValue.length() > 32700)
 			sourceValue = sourceValue.substring(0, 32700);
 		if(targetValue.length() > 32700)
@@ -307,20 +353,24 @@ public class JsonCompare {
 			row.createCell(0).setCellValue(key1);
 			row.createCell(1).setCellValue(sourceValue);
 			row.createCell(2).setCellValue(targetValue);
-			row.createCell(3).setCellValue("Match");			
+			row.createCell(3).setCellValue(key2);
+			row.createCell(4).setCellValue("Match");			
 		}
 		else {
 			System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
 			row.createCell(0).setCellValue(key1);
 			row.createCell(1).setCellValue(sourceValue);
 			row.createCell(2).setCellValue(targetValue);
-			row.createCell(3).setCellValue("Mismatch");
-			CellStyle style = workbook.createCellStyle();      
-            style.setFillBackgroundColor(IndexedColors.RED.getIndex());
-            style.setFillPattern(FillPatternType.FINE_DOTS);
-            row.getCell(3).setCellStyle(style);			
+			row.createCell(3).setCellValue(key2);
+			row.createCell(4).setCellValue("Mismatch");
+			CellStyle style = workbook.createCellStyle();      			
+			style.setFillForegroundColor(IndexedColors.RED.getIndex());
+			style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+			row.getCell(4).setCellStyle(style);			
 		}
-		workbook.write(new FileOutputStream("results/" + excelFileName));
+		FileOutputStream fileOutputStream = new FileOutputStream("results/" + excelFileName);
+		workbook.write(fileOutputStream);
+		fileOutputStream.close();
 	}
 
 	public static ArrayList<String> convertJsonToList(String fileName) throws Throwable {
