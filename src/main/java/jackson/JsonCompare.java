@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -34,6 +35,11 @@ public class JsonCompare {
 	static XSSFSheet sheet;
 	static int rowCounter = 0;
 	static String excelFileName = null;
+	/**
+	 * This is used to reverse the result i.e. We do one round of validation with source and target and in another round of validation, we interchange the values.
+	 */
+	static boolean reverseResult = false;
+	static ArrayList<String> comparedValues = new ArrayList<String>(); 
 	public static void main(String...arg)throws Throwable{
 
 		ZonedDateTime zdt = ZonedDateTime.now();
@@ -88,7 +94,10 @@ public class JsonCompare {
 					cell4.setCellStyle(style);
 					workbook.write(new FileOutputStream("results/" + excelFileName));
 
+					reverseResult = false;
 					compareJson(null, null, arrayNode1, arrayNode2);
+					reverseResult = true;
+					compareJson(null, null, arrayNode2, arrayNode1);
 
 					// Apply filter and hide other columns.
 					CellRangeAddress cellRangeAddress = new CellRangeAddress(0, rowCounter, 0, 4);
@@ -117,7 +126,10 @@ public class JsonCompare {
 					fileOutputStream.close();
 				}
 			}
-		}		
+		}
+	ZonedDateTime zdt2 = ZonedDateTime.now();
+	long diff = ChronoUnit.SECONDS.between(zdt, zdt2);
+	System.out.println("Total time taken = " + diff + " seconds");
 	}
 
 	private static void setCellValue(String string) {
@@ -353,25 +365,51 @@ public class JsonCompare {
 			sourceValue = sourceValue.substring(0, 32700);
 		if(targetValue.length() > 32700)
 			targetValue = targetValue.substring(0, 32700);
-		if(sourceValue.equals(targetValue) == true) {
-			System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
-			row.createCell(0).setCellValue(key1);
-			row.createCell(1).setCellValue(sourceValue);
-			row.createCell(2).setCellValue(targetValue);
-			row.createCell(3).setCellValue(key2);
-			row.createCell(4).setCellValue("Match");			
+		if(reverseResult == false) {
+			comparedValues.add(key1 + "|" + sourceValue + "|" + key2 + "|" + targetValue);
+			if(sourceValue.equals(targetValue) == true) {
+				System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+				row.createCell(0).setCellValue(key1);
+				row.createCell(1).setCellValue(sourceValue);
+				row.createCell(2).setCellValue(targetValue);
+				row.createCell(3).setCellValue(key2);
+				row.createCell(4).setCellValue("Match");			
+			}
+			else {
+				System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+				row.createCell(0).setCellValue(key1);
+				row.createCell(1).setCellValue(sourceValue);
+				row.createCell(2).setCellValue(targetValue);
+				row.createCell(3).setCellValue(key2);
+				row.createCell(4).setCellValue("Mismatch");
+				CellStyle style = workbook.createCellStyle();      			
+				style.setFillForegroundColor(IndexedColors.RED.getIndex());
+				style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+				row.getCell(4).setCellStyle(style);			
+			}
 		}
-		else {
-			System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
-			row.createCell(0).setCellValue(key1);
-			row.createCell(1).setCellValue(sourceValue);
-			row.createCell(2).setCellValue(targetValue);
-			row.createCell(3).setCellValue(key2);
-			row.createCell(4).setCellValue("Mismatch");
-			CellStyle style = workbook.createCellStyle();      			
-			style.setFillForegroundColor(IndexedColors.RED.getIndex());
-			style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-			row.getCell(4).setCellStyle(style);			
+		else { //reverseResult is true
+			comparedValues.contains(key2 + "|" + targetValue + "|" + key1 + "|" + sourceValue);
+			if(sourceValue.equals(targetValue) == true) {
+				System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+				row.createCell(0).setCellValue(key2);
+				row.createCell(1).setCellValue(targetValue);
+				row.createCell(2).setCellValue(sourceValue);
+				row.createCell(3).setCellValue(key1);
+				row.createCell(4).setCellValue("Match");			
+			}
+			else {
+				System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+				row.createCell(0).setCellValue(key2);
+				row.createCell(1).setCellValue(targetValue);
+				row.createCell(2).setCellValue(sourceValue);
+				row.createCell(3).setCellValue(key1);
+				row.createCell(4).setCellValue("Mismatch");
+				CellStyle style = workbook.createCellStyle();      			
+				style.setFillForegroundColor(IndexedColors.RED.getIndex());
+				style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+				row.getCell(4).setCellStyle(style);			
+			}
 		}
 		FileOutputStream fileOutputStream = new FileOutputStream("results/" + excelFileName);
 		workbook.write(fileOutputStream);
