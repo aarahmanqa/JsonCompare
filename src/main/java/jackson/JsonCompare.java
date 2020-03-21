@@ -93,7 +93,8 @@ public class JsonCompare {
 					cell4.setCellValue("Result");
 					cell4.setCellStyle(style);
 					workbook.write(new FileOutputStream("results/" + excelFileName));
-
+					
+					comparedValues = new ArrayList<String>();
 					reverseResult = false;
 					compareJson(null, null, arrayNode1, arrayNode2);
 					reverseResult = true;
@@ -127,9 +128,9 @@ public class JsonCompare {
 				}
 			}
 		}
-	ZonedDateTime zdt2 = ZonedDateTime.now();
-	long diff = ChronoUnit.SECONDS.between(zdt, zdt2);
-	System.out.println("Total time taken = " + diff + " seconds");
+		ZonedDateTime zdt2 = ZonedDateTime.now();
+		long diff = ChronoUnit.SECONDS.between(zdt, zdt2);
+		System.out.println("Total time taken = " + diff + " seconds");
 	}
 
 	private static void setCellValue(String string) {
@@ -359,15 +360,15 @@ public class JsonCompare {
 		compareJsonValueAsText(key1,key2,sourceValue,targetValue);
 	}
 
-	public static void compareJsonValueAsText(String key1, String key2, String sourceValue, String targetValue) throws Throwable{		
-		Row row = sheet.createRow(++rowCounter);
+	public static void compareJsonValueAsText(String key1, String key2, String sourceValue, String targetValue) throws Throwable{				
 		if(sourceValue.length() > 32700)
 			sourceValue = sourceValue.substring(0, 32700);
 		if(targetValue.length() > 32700)
 			targetValue = targetValue.substring(0, 32700);
 		if(reverseResult == false) {
-			comparedValues.add(key1 + "|" + sourceValue + "|" + key2 + "|" + targetValue);
-			if(sourceValue.equals(targetValue) == true) {
+			comparedValues.add(key1 + "|" + key2);
+			Row row = sheet.createRow(++rowCounter);
+			if(sourceValue.equals(targetValue) == true) {				
 				System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
 				row.createCell(0).setCellValue(key1);
 				row.createCell(1).setCellValue(sourceValue);
@@ -389,26 +390,28 @@ public class JsonCompare {
 			}
 		}
 		else { //reverseResult is true
-			comparedValues.contains(key2 + "|" + targetValue + "|" + key1 + "|" + sourceValue);
-			if(sourceValue.equals(targetValue) == true) {
-				System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
-				row.createCell(0).setCellValue(key2);
-				row.createCell(1).setCellValue(targetValue);
-				row.createCell(2).setCellValue(sourceValue);
-				row.createCell(3).setCellValue(key1);
-				row.createCell(4).setCellValue("Match");			
-			}
-			else {
-				System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
-				row.createCell(0).setCellValue(key2);
-				row.createCell(1).setCellValue(targetValue);
-				row.createCell(2).setCellValue(sourceValue);
-				row.createCell(3).setCellValue(key1);
-				row.createCell(4).setCellValue("Mismatch");
-				CellStyle style = workbook.createCellStyle();      			
-				style.setFillForegroundColor(IndexedColors.RED.getIndex());
-				style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-				row.getCell(4).setCellStyle(style);			
+			if(comparedValues.contains(key2 + "|" + key1 ) == false) {
+				Row row = sheet.createRow(++rowCounter);
+				if(sourceValue.equals(targetValue) == true) {
+					System.out.println("Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+					row.createCell(0).setCellValue(key2);
+					row.createCell(1).setCellValue(targetValue);
+					row.createCell(2).setCellValue(sourceValue);
+					row.createCell(3).setCellValue(key1);
+					row.createCell(4).setCellValue("Match");			
+				}
+				else {
+					System.out.println("Not Matching key = " + key1 + " : " + key2 + "\n" + sourceValue + " \n" + targetValue);
+					row.createCell(0).setCellValue(key2);
+					row.createCell(1).setCellValue(targetValue);
+					row.createCell(2).setCellValue(sourceValue);
+					row.createCell(3).setCellValue(key1);
+					row.createCell(4).setCellValue("Mismatch");
+					CellStyle style = workbook.createCellStyle();      			
+					style.setFillForegroundColor(IndexedColors.RED.getIndex());
+					style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+					row.getCell(4).setCellStyle(style);			
+				}
 			}
 		}
 		FileOutputStream fileOutputStream = new FileOutputStream("results/" + excelFileName);
